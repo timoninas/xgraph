@@ -43,6 +43,25 @@
 
 ---
 
+## Запуск проекта
+
+```bash
+# Загрузка репозитория
+git clone https://github.com/your-org/Xgraph.git
+cd Xgraph
+
+# Подгрузка swift-пакетов
+xcodebuild -resolvePackageDependencies -workspace xgraph.xcworkspace -scheme xgraph -quiet
+
+# Сборка бинарного файла
+xcodebuild -workspace xgraph.xcworkspace -scheme xgraph -configuration Release -destination 'generic/platform=macOS' -quiet build
+
+# Переход в директорию с приложением
+open -R "$(ls -td ~/Library/Developer/Xcode/DerivedData/xgraph-*/Build/Products/Release/xgraph.app 2>/dev/null | head -n 1)"
+```
+
+---
+
 ## Макеты
 
 // MARK:- TODO
