@@ -20,13 +20,26 @@
 
 ---
 
+## Стек технологий
+
+| Категория       | Технологии                                               |
+| --------------- | -------------------------------------------------------- |
+| Язык / версии   | **Swift 5**, Swift Concurrency                           |
+| Архитектура     | `MVVM`                                                   |
+| UI-фреймворки   | **SwiftUI**, **AppKit**                                  |
+| Реактивность    | **Combine**                                              |
+| Работа с логами | Собственный парсер `.xcactivitylog` + `target-graph.txt` |
+| Компрессия      | **Gzip** (SPM-пакет)                                     |
+| Тесты           | Unit-tests, Snapshot-tests, UI-tests                     |
+| Сборщик         | Xcodeproj, **Swift Package Manager (SPM)**               |
+
+---
+
 ## Минимальные требования
 
 - **MacOS 15+** (для запуска GUI)
 - Распакованные логи из **Xcode 16** (`iOS 18+`, `iPadOS 18+`, `tvOS 18+`, `watchOS 11+`, `visionOS 2+`)
 - **Xcode CLI Tools** 16.0+
-
----
 
 ---
 
