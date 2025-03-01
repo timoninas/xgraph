@@ -1,0 +1,15 @@
+{
+  "originHash" : "2bdfac899477249363c99a86cd8c67fc4fbb0e39a256e3660cc4a57a8a3492b7",
+  "pins" : [
+    {
+      "identity" : "gzipswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/1024jp/GzipSwift",
+      "state" : {
+        "revision" : "7a7f17761c76a932662ab77028a4329f67d645a4",
+        "version" : "5.2.0"
+      }
+    }
+  ],
+  "version" : 3
+}
