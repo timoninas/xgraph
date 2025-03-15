@@ -9,6 +9,11 @@ import Foundation
 import SwiftUI
 import Combine
 
+class ProjectSnapshotManager: ObservableObject {
+    
+    func combineData(buildDependencies: [Target: [Dependency]]?, logDependencies: [LogDependencies]) { }
+}
+
 class DerivedDataManager: ObservableObject {
     
     @Published var isParsingActivityLogs = false
@@ -43,9 +48,9 @@ class DerivedDataManager: ObservableObject {
     }
     
     private func subscribeToChanges() {
-            xcactivityLogParser.$parsedResults
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] results in
+        xcactivityLogParser.$parsedResults
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] results in
                 guard let self = self else { return }
                 
                 var enriched = results
@@ -58,9 +63,9 @@ class DerivedDataManager: ObservableObject {
             }
             .store(in: &cancellables)
         
-            xcactivityLogParser.$isParsing
-                .receive(on: DispatchQueue.main)
-                .assign(to: &$isParsingActivityLogs)
+        xcactivityLogParser.$isParsing
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isParsingActivityLogs)
     }
     
     func parseLogs(urls: [URL]) {
@@ -68,19 +73,20 @@ class DerivedDataManager: ObservableObject {
     }
     
     func processDerivedData(directory: URL) {
-            self.selectedDependencyGraph = nil
-            self.xcactivityLogFiles = []
-            self.errorMessage = nil
+        self.selectedDependencyGraph = nil
+        self.xcactivityLogFiles = []
+        self.errorMessage = nil
         
-            let fileManager = FileManager.default
+        let fileManager = FileManager.default
         
-            let xcbuildDataPath = directory.appendingPathComponent("Build/Intermediates.noindex/XCBuildData")
-            var bestGraph: [Target: [Dependency]]?
-            var bestCount = 0
+        let xcbuildDataPath = directory.appendingPathComponent("Build/Intermediates.noindex/XCBuildData")
+        var bestGraph: [Target: [Dependency]]?
+        var bestCount = 0
         
         do {
             let contents = try fileManager.contentsOfDirectory(at: xcbuildDataPath, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
             let buildDataFolders = contents.filter { $0.pathExtension == "xcbuilddata" }
+            
             
             for folder in buildDataFolders {
                 let targetGraphURL = folder.appendingPathComponent("target-graph.txt")
