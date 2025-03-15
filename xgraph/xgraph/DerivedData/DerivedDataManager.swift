@@ -12,10 +12,16 @@ import Combine
 class DerivedDataManager: ObservableObject {
     
     @Published var isParsingActivityLogs = false
+    
+    @Published var parsedResults: [LogDependencies]
+    
+    @Published var selectedDependencyGraph: [Target: [Dependency]]?
     @Published var xcactivityLogFiles: [URL] = []
     @Published var errorMessage: String?
     
     private var cancellables = Set<AnyCancellable>()
+    private var xcactivityLogParser: XcactivityLogParser
+    private let targetGraphParser: TargetGraphParser
     
     init(isParsingActivityLogs: Bool = false,
          selectedDependencyGraph: [Target : [Dependency]]? = nil,
@@ -25,29 +31,77 @@ class DerivedDataManager: ObservableObject {
          xcactivityLogParser: XcactivityLogParser = XcactivityLogParser(),
          targetGraphParser: TargetGraphParser = TargetGraphParser()) {
         self.isParsingActivityLogs = isParsingActivityLogs
+        self.parsedResults = []
+        self.xcactivityLogParser = xcactivityLogParser
+        self.targetGraphParser = TargetGraphParser()
+        self.selectedDependencyGraph = selectedDependencyGraph
         self.xcactivityLogFiles = xcactivityLogFiles
         self.errorMessage = errorMessage
         self.cancellables = cancellables
+        
+        self.subscribeToChanges()
+    }
+    
+    private func subscribeToChanges() {
+            xcactivityLogParser.$parsedResults
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] results in
+                guard let self = self else { return }
+                
+                var enriched = results
+                if let graph = self.selectedDependencyGraph {
+                    for i in 0..<enriched.count {
+                        enriched[i].applyDependencies(from: graph)
+                    }
+                }
+                self.parsedResults = enriched
+            }
+            .store(in: &cancellables)
+        
+            xcactivityLogParser.$isParsing
+                .receive(on: DispatchQueue.main)
+                .assign(to: &$isParsingActivityLogs)
     }
     
     func parseLogs(urls: [URL]) {
+        self.xcactivityLogParser.parseLogs(urls: urls)
     }
     
     func processDerivedData(directory: URL) {
-        self.xcactivityLogFiles = []
-        self.errorMessage = nil
+            self.selectedDependencyGraph = nil
+            self.xcactivityLogFiles = []
+            self.errorMessage = nil
         
-        let fileManager = FileManager.default
+            let fileManager = FileManager.default
         
-        let xcbuildDataPath = directory.appendingPathComponent("Build/Intermediates.noindex/XCBuildData")
-        var bestGraph: [Target: [Dependency]]?
-        var bestCount = 0
+            let xcbuildDataPath = directory.appendingPathComponent("Build/Intermediates.noindex/XCBuildData")
+            var bestGraph: [Target: [Dependency]]?
+            var bestCount = 0
         
         do {
             let contents = try fileManager.contentsOfDirectory(at: xcbuildDataPath, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
             let buildDataFolders = contents.filter { $0.pathExtension == "xcbuilddata" }
+            
+            for folder in buildDataFolders {
+                let targetGraphURL = folder.appendingPathComponent("target-graph.txt")
+                if fileManager.fileExists(atPath: targetGraphURL.path) {
+                    let content = try String(contentsOf: targetGraphURL, encoding: .utf8)
+                    let graph = self.targetGraphParser.parse(text: content)
+                    let targetCount = graph.keys.count
+                    if targetCount > bestCount {
+                        bestCount = targetCount
+                        bestGraph = graph
+                    }
+                }
+            }
         } catch {
-            self.errorMessage = "Ошибка при обработке XCBuildData: \(error.localizedDescription)"
+            DispatchQueue.main.async {
+                self.errorMessage = "Ошибка при обработке XCBuildData: \(error.localizedDescription)"
+            }
+        }
+        
+        DispatchQueue.main.async {
+            self.selectedDependencyGraph = bestGraph
         }
         
         let logsPath = directory.appendingPathComponent("Logs/Build")
