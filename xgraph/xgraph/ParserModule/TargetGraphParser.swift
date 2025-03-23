@@ -24,15 +24,15 @@ enum DependencyType: Hashable {
 
 class TargetGraphParser {
     func parse(text: String) -> [Target: [Dependency]] {
-        var graph = [Target: [Dependency]]()
-        var currentTarget: Target?
+            var graph = [Target: [Dependency]]()
+            var currentTarget: Target?
         
-        let lines = text.components(separatedBy: .newlines)
+            let lines = text.components(separatedBy: .newlines)
         
-        for line in lines {
+                for line in lines {
+                        let trimmedLine = line.trimmingCharacters(in: .whitespaces)
             
-            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            if trimmedLine.starts(with: "Target") {
+                    if trimmedLine.starts(with: "Target") {
                 let components = trimmedLine.components(separatedBy: "'")
                 guard components.count >= 5 else { continue }
                 let name = components[1]
@@ -45,8 +45,27 @@ class TargetGraphParser {
                 }
             }
             
-            let isExplicit = trimmedLine.contains("Explicit")
-            let dependencyType: DependencyType = isExplicit ? .explicit : .implicit
+                    else if trimmedLine.starts(with: "➜") {
+                guard let currentTarget = currentTarget else { continue }
+                
+                // Определяем тип зависимости типа зависимости
+                let isExplicit = trimmedLine.contains("Explicit")
+                let dependencyType: DependencyType = isExplicit ? .explicit : .implicit
+                
+                let dependencyPart = trimmedLine.components(separatedBy: "dependency on target '").last ?? ""
+                let targetComponents = dependencyPart.components(separatedBy: "' in project '")
+                
+                guard targetComponents.count >= 2 else { continue }
+                let targetName = targetComponents[0]
+                let projectName = targetComponents[1].components(separatedBy: "'").first ?? ""
+                
+                // Создание зависимости
+                let target = Target(name: targetName, project: projectName)
+                let dependency = Dependency(target: target, type: dependencyType)
+                
+                // Добавление зависимости в граф
+                graph[currentTarget]?.append(dependency)
+                    }
         }
         
         return graph
