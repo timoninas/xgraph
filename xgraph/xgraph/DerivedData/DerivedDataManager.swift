@@ -16,6 +16,8 @@ class ProjectSnapshotManager: ObservableObject {
 
 class DerivedDataManager: ObservableObject {
     
+    // MARK: - Internal properties
+    
     @Published var isParsingActivityLogs = false
     
     @Published var parsedResults: [LogDependencies]
@@ -24,9 +26,13 @@ class DerivedDataManager: ObservableObject {
     @Published var xcactivityLogFiles: [URL] = []
     @Published var errorMessage: String?
     
+    // MARK: - Private properties
+    
     private var cancellables = Set<AnyCancellable>()
     private var xcactivityLogParser: XcactivityLogParser
     private let targetGraphParser: TargetGraphParser
+    
+    // MARK: - Init
     
     init(isParsingActivityLogs: Bool = false,
          selectedDependencyGraph: [Target : [Dependency]]? = nil,
@@ -46,6 +52,8 @@ class DerivedDataManager: ObservableObject {
         
         self.subscribeToChanges()
     }
+    
+    // MARK: - Private methods
     
     private func subscribeToChanges() {
         xcactivityLogParser.$parsedResults
@@ -67,6 +75,8 @@ class DerivedDataManager: ObservableObject {
             .receive(on: DispatchQueue.main)
             .assign(to: &$isParsingActivityLogs)
     }
+    
+    // MARK: - Internal methods
     
     func parseLogs(urls: [URL]) {
         self.xcactivityLogParser.parseLogs(urls: urls)
