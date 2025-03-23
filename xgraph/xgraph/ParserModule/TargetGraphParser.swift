@@ -7,6 +7,8 @@
 
 import Foundation
 
+// MARK: - Models
+
 struct Target: Hashable {
     let name: String
     let project: String
@@ -22,17 +24,23 @@ enum DependencyType: Hashable {
     case implicit
 }
 
-class TargetGraphParser {
+// MARK: - Target Parser
+
+final class TargetGraphParser {
+    
+    // MARK: - Internal methods
+    
     func parse(text: String) -> [Target: [Dependency]] {
-            var graph = [Target: [Dependency]]()
-            var currentTarget: Target?
         
-            let lines = text.components(separatedBy: .newlines)
+        var graph = [Target: [Dependency]]()
+        var currentTarget: Target?
         
-                for line in lines {
-                        let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+        let lines = text.components(separatedBy: .newlines)
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
             
-                    if trimmedLine.starts(with: "Target") {
+            if trimmedLine.starts(with: "Target") {
                 let components = trimmedLine.components(separatedBy: "'")
                 guard components.count >= 5 else { continue }
                 let name = components[1]
@@ -45,7 +53,7 @@ class TargetGraphParser {
                 }
             }
             
-                    else if trimmedLine.starts(with: "➜") {
+            else if trimmedLine.starts(with: "➜") {
                 guard let currentTarget = currentTarget else { continue }
                 
                 // Определяем тип зависимости типа зависимости
@@ -65,7 +73,7 @@ class TargetGraphParser {
                 
                 // Добавление зависимости в граф
                 graph[currentTarget]?.append(dependency)
-                    }
+            }
         }
         
         return graph
