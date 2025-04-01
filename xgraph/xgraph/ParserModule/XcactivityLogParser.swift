@@ -49,7 +49,9 @@ final class XcactivityLogParser: ObservableObject {
                         self.parsedResults.append(logDependencies)
                     }
                 } catch {
-                    break
+                    DispatchQueue.main.async {
+                        self.errorMessage = "Ошибка при разборе \(url.lastPathComponent): \(error.localizedDescription)"
+                    }
                 }
             }
             DispatchQueue.main.async { self.isParsing = false }
@@ -97,10 +99,12 @@ final class XcactivityLogParser: ObservableObject {
                 if var existing = packagesDict[targetName] {
                     // если таргет встретился несколько раз (например, test‑таргет),
                     // берём больший compile‑time
+                    existing.duration = max(existing.duration, pureDuration)
                     existing.endTime  = max(existing.endTime, endTime)
                     packagesDict[targetName] = existing
                 } else {
                     packagesDict[targetName] = Package(
+                        name:       targetName,
                         startTime:  startTime,
                         endTime:    endTime,
                         duration:   pureDuration
