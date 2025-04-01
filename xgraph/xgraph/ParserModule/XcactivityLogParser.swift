@@ -30,10 +30,15 @@ final class XcactivityLogParser: ObservableObject {
 
     @Published var parsedResults: [LogDependencies] = []
     @Published var isParsing = false
+    @Published var progressValue = 0
+    @Published var totalLogs = 0
+    @Published var errorMessage: String?
 
     func parseLogs(urls: [URL]) {
         parsedResults.removeAll()
         isParsing = true
+        progressValue = 0
+        totalLogs = urls.count
 
         DispatchQueue.global(qos: .userInitiated).async {
             for url in urls {
@@ -47,6 +52,7 @@ final class XcactivityLogParser: ObservableObject {
                     )
                     DispatchQueue.main.async {
                         self.parsedResults.append(logDependencies)
+                        self.progressValue += 1
                     }
                 } catch {
                     DispatchQueue.main.async {
