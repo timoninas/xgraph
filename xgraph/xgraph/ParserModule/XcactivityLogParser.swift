@@ -16,6 +16,8 @@ struct Package: Identifiable, Hashable {
     var type: DepType
     var startTime: TimeInterval
     var endTime: TimeInterval
+    var duration: TimeInterval
+    var dependencies: Set<String> = []
 }
 
 struct LogDependencies: Identifiable, Hashable {
@@ -24,6 +26,18 @@ struct LogDependencies: Identifiable, Hashable {
     let fileName: String
     let totalDuration: TimeInterval
     var packages: [Package]
+
+    mutating func applyDependencies(from graph: [Target: [Dependency]]?) {
+        guard let graph else { return }
+
+        var indexForName: [String: Int] = [:]
+        for (i, pkg) in packages.enumerated() { indexForName[pkg.name] = i }
+
+        for (parent, deps) in graph {
+            guard let pIdx = indexForName[parent.name] else { continue }
+            for dep in deps { packages[pIdx].dependencies.insert(dep.target.name) }
+        }
+    }
 }
 
 final class XcactivityLogParser: ObservableObject {
@@ -115,6 +129,9 @@ final class XcactivityLogParser: ObservableObject {
                         endTime:    endTime,
                         duration:   pureDuration
                     )
+
+                    // debug‑лог — по одному на таргет
+                    print("[DBG] name=\(targetName) type=\(inferredType) duration=\(pureDuration)")
                 }
             }
 
