@@ -9,7 +9,14 @@ import Foundation
 import SwiftUI
 
 struct Package: Identifiable, Hashable {
-    enum DepType { case staticLib, dynamic, unknown }
+    
+    // MARK: - Internal properties
+    
+    enum DepType {
+        case staticLib
+        case dynamic
+        case unknown
+    }
 
     let id = UUID()
     let name: String
@@ -21,11 +28,15 @@ struct Package: Identifiable, Hashable {
 }
 
 struct LogDependencies: Identifiable, Hashable {
+    
+    // MARK: - Internal properties
 
     let id = UUID()
     let fileName: String
     let totalDuration: TimeInterval
     var packages: [Package]
+    
+    // MARK: - Internal methods
 
     mutating func applyDependencies(from graph: [Target: [Dependency]]?) {
         guard let graph else { return }
@@ -41,12 +52,30 @@ struct LogDependencies: Identifiable, Hashable {
 }
 
 final class XcactivityLogParser: ObservableObject {
+    
+    // MARK: - Internal properties
 
     @Published var parsedResults: [LogDependencies] = []
-    @Published var isParsing = false
-    @Published var progressValue = 0
-    @Published var totalLogs = 0
+    @Published var isParsing: Bool
+    @Published var progressValue: Int
+    @Published var totalLogs: Int
     @Published var errorMessage: String?
+    
+    // MARK: - Init
+    
+    init(parsedResults: [LogDependencies] = [],
+         isParsing: Bool = false,
+         progressValue: Int = 0,
+         totalLogs: Int = 0,
+         errorMessage: String? = nil) {
+        self.parsedResults = parsedResults
+        self.isParsing = isParsing
+        self.progressValue = progressValue
+        self.totalLogs = totalLogs
+        self.errorMessage = errorMessage
+    }
+    
+    // MARK: - Internal properties
 
     func parseLogs(urls: [URL]) {
         parsedResults.removeAll()
@@ -77,7 +106,60 @@ final class XcactivityLogParser: ObservableObject {
             DispatchQueue.main.async { self.isParsing = false }
         }
     }
+    
+    // MARK: - Private methods
 
+    private func extractPackages(
+            from buildStep: BuildStep,
+            fileURL: URL,
+            totalBuildTime: TimeInterval
+        ) -> LogDependencies {
+
+            var packagesDict: [String: Package] = [:]
+
+            func traverse(step: BuildStep) {
+                guard step.type == .target,
+                      step.title.hasPrefix("Build target ") else {
+                    step.subSteps.forEach { traverse(step: $0) }
+                    return
+                }
+
+                let targetName    = step.title.replacingOccurrences(of: "Build target ", with: "")
+                let inferredType  = inferPackageType(for: step)
+
+                let pureDuration  = step.compilationDuration > 0
+                                  ? step.compilationDuration
+                                  : step.duration
+
+                let startTime     = step.startTimestamp
+                let endTime       = startTime + pureDuration
+
+                if var existing = packagesDict[targetName] {
+                    existing.duration = max(existing.duration, pureDuration)
+                    existing.type     = inferredType == .unknown ? existing.type : inferredType
+                    existing.endTime  = max(existing.endTime, endTime)
+                    packagesDict[targetName] = existing
+                } else {
+                    packagesDict[targetName] = Package(
+                        name:       targetName,
+                        type:       inferredType,
+                        startTime:  startTime,
+                        endTime:    endTime,
+                        duration:   pureDuration
+                    )
+                }
+            }
+
+            traverse(step: buildStep)
+            let packages = Array(packagesDict.values)
+
+            return LogDependencies(
+                fileName:       fileURL.lastPathComponent,
+                totalDuration:  totalBuildTime,
+                packages:       packages
+            )
+        }
+    
     private func parseLogFile(at url: URL) throws -> BuildStep {
         let activityLog = try ActivityParser().parseActivityLogInURL(
             url,
@@ -118,61 +200,4 @@ final class XcactivityLogParser: ObservableObject {
     private func signatureContains(_ step: BuildStep, pattern: String) -> Bool {
         step.signature.contains(pattern) || step.title.contains(pattern)
     }
-
-    private func extractPackages(
-            from buildStep: BuildStep,
-            fileURL: URL,
-            totalBuildTime: TimeInterval
-        ) -> LogDependencies {
-
-            var packagesDict: [String: Package] = [:]
-
-            func traverse(step: BuildStep) {
-                guard step.type == .target,
-                      step.title.hasPrefix("Build target ") else {
-                    step.subSteps.forEach { traverse(step: $0) }
-                    return
-                }
-
-                let targetName    = step.title.replacingOccurrences(of: "Build target ", with: "")
-                let inferredType  = inferPackageType(for: step)
-
-                // «чистое» compile‑time таргета
-                let pureDuration  = step.compilationDuration > 0
-                                  ? step.compilationDuration
-                                  : step.duration
-
-                let startTime     = step.startTimestamp
-                let endTime       = startTime + pureDuration
-
-                if var existing = packagesDict[targetName] {
-                    // если таргет встретился несколько раз (например, test‑таргет),
-                    // берём больший compile‑time
-                    existing.duration = max(existing.duration, pureDuration)
-                    existing.type     = inferredType == .unknown ? existing.type : inferredType
-                    existing.endTime  = max(existing.endTime, endTime)
-                    packagesDict[targetName] = existing
-                } else {
-                    packagesDict[targetName] = Package(
-                        name:       targetName,
-                        type:       inferredType,
-                        startTime:  startTime,
-                        endTime:    endTime,
-                        duration:   pureDuration
-                    )
-
-                    // debug‑лог — по одному на таргет
-                    print("[DBG] name=\(targetName) type=\(inferredType) duration=\(pureDuration)")
-                }
-            }
-
-            traverse(step: buildStep)
-            let packages = Array(packagesDict.values)
-
-            return LogDependencies(
-                fileName:       fileURL.lastPathComponent,
-                totalDuration:  totalBuildTime,
-                packages:       packages
-            )
-        }
 }
