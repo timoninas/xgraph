@@ -91,6 +91,34 @@ final class XcactivityLogParser: ObservableObject {
         )
         return try buildParser.parse(activityLog: activityLog)
     }
+
+    private func inferPackageType(for target: BuildStep) -> Package.DepType {
+
+        if stepContains(target, where: { $0.detailStepType == .createStaticLibrary }) {
+            return .staticLib
+        }
+
+        if stepContains(target, where: { $0.detailStepType == .linker }) ||
+            stepContains(target, where: { signatureContains($0, pattern: "-emit-library") }) {
+            return .dynamic
+        }
+
+        return .unknown
+    }
+
+    private func stepContains(_ step: BuildStep,
+                              where predicate: (BuildStep) -> Bool) -> Bool {
+        if predicate(step) { return true }
+        for sub in step.subSteps {
+            if stepContains(sub, where: predicate) { return true }
+        }
+        return false
+    }
+
+    private func signatureContains(_ step: BuildStep, pattern: String) -> Bool {
+        step.signature.contains(pattern) || step.title.contains(pattern)
+    }
+
     private func extractPackages(
             from buildStep: BuildStep,
             fileURL: URL,
@@ -107,6 +135,7 @@ final class XcactivityLogParser: ObservableObject {
                 }
 
                 let targetName    = step.title.replacingOccurrences(of: "Build target ", with: "")
+                let inferredType  = inferPackageType(for: step)
 
                 // «чистое» compile‑time таргета
                 let pureDuration  = step.compilationDuration > 0
@@ -120,11 +149,13 @@ final class XcactivityLogParser: ObservableObject {
                     // если таргет встретился несколько раз (например, test‑таргет),
                     // берём больший compile‑time
                     existing.duration = max(existing.duration, pureDuration)
+                    existing.type     = inferredType == .unknown ? existing.type : inferredType
                     existing.endTime  = max(existing.endTime, endTime)
                     packagesDict[targetName] = existing
                 } else {
                     packagesDict[targetName] = Package(
                         name:       targetName,
+                        type:       inferredType,
                         startTime:  startTime,
                         endTime:    endTime,
                         duration:   pureDuration
