@@ -30,13 +30,40 @@ struct MainView: View {
                 derivedDataManager.processDerivedData(directory: dir)
             }
             .padding()
-            
+
             if let graph = derivedDataManager.selectedDependencyGraph {
                 Text("Выбран граф зависимостей с \(graph.keys.count) целями.")
                     .font(.headline)
                     .padding()
             }
-            
+
+            // список .xcactivitylog
+            if !derivedDataManager.xcactivityLogFiles.isEmpty {
+                Text("Выберите лог сборки (.xcactivitylog):")
+                    .font(.subheadline)
+
+                List(derivedDataManager.xcactivityLogFiles, id: \.self) { url in
+                    Button {
+                        selectedLogFile = url
+                        derivedDataManager.parseLogs(urls: [url])
+                    } label: {
+                        HStack {
+                            Text(url.lastPathComponent)
+                            Spacer()
+                            if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+                               let dt   = attrs[.creationDate] as? Date {
+                                Text("\(dt, formatter: dateFormatter)")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                .frame(height: 200)
+            }
+
+            if derivedDataManager.isParsingActivityLogs {
+                ProgressView().padding()
+            }
         }
     }
 }
