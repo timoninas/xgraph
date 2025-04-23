@@ -8,13 +8,52 @@
 import SwiftUI
 import Charts
 
+private struct GanttItem: Identifiable {
+    let id = UUID()
+    let name: String
+    let start: Double
+    let end: Double
+    let duration: Double
+    let type: Package.DepType
+}
+private struct TargetColumn: View {
+    
+    // MARK: - Internal properties
+    
+    let items: [GanttItem]
+    let rowH:  CGFloat
+    
+    // MARK: - Body
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(items) { it in
+                Text(it.name)
+                    .font(.system(size: 12,
+                                  weight: .regular,
+                                  design: .monospaced))
+                    .frame(height: rowH, alignment: .center)
+            }
+        }
+        .padding(.trailing, 4)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+}
+
 private struct BarChart: View {
+    
+    // MARK: - Internal properties
+    
     let items:    [GanttItem]
     let domainX:  ClosedRange<Double>
     let pxPerSec: CGFloat
     let size:     CGSize
     
+    // MARK: - Private properties
+    
     @State private var tip: (item: GanttItem, p: CGPoint)?
+    
+    // MARK: - Body
     
     var body: some View {
         ScrollView(.horizontal) {
@@ -73,6 +112,8 @@ private struct BarChart: View {
         }
     }
     
+    // MARK: - Private methods
+    
     private func updateTip(proxy: ChartProxy,
                            geo:   GeometryProxy,
                            point: CGPoint) {
@@ -102,7 +143,13 @@ private struct BarChart: View {
 }
 
 private struct HoverTracker: ViewModifier {
+    
+    // MARK: - Internal properties
+    
     let onMove: (CGPoint) -> Void
+    
+    // MARK: - Body
+    
     func body(content: Content) -> some View {
         content.onContinuousHover { ph in
             switch ph {
@@ -115,9 +162,14 @@ private struct HoverTracker: ViewModifier {
 }
 
 private struct BottomAxis: View {
+    
+    // MARK: - Internal properties
+    
     let domainX:  ClosedRange<Double>
     let pxPerSec: CGFloat
     let tickStep: Double
+    
+    // MARK: - Body
     
     var body: some View {
         
@@ -150,8 +202,12 @@ private struct BottomAxis: View {
 
 struct CombinedDependencyGanttChartView: View {
     
+    // MARK: - Internal properties
+    
     let log:   LogDependencies
     let graph: [Target : [Dependency]]?
+    
+    // MARK: - Body
     
     var body: some View {
         
@@ -192,6 +248,9 @@ struct CombinedDependencyGanttChartView: View {
         }
         .padding()
     }
+    
+    // MARK: - Private methods
+    
     private func makeItems() -> [GanttItem] {
         
         let byName = Dictionary(uniqueKeysWithValues:
@@ -227,13 +286,10 @@ struct CombinedDependencyGanttChartView: View {
         .sorted { $0.start < $1.start }
     }
     
-    private func geometry(for items: [GanttItem])
-    -> (rowH: CGFloat, pxPerSec: CGFloat,
-        contentW: CGFloat, contentH: CGFloat,
-        timelineMax: Double, tick: Double)
-    {
+    private func geometry(for items: [GanttItem]) -> (rowH: CGFloat, pxPerSec: CGFloat,
+                                                      contentW: CGFloat, contentH: CGFloat,
+                                                      timelineMax: Double, tick: Double) {
         let rowH: CGFloat = 18
-        
         let timelineMax = max(log.totalDuration,
                               items.map(\.end).max() ?? 0)
         
