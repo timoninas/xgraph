@@ -252,38 +252,18 @@ struct CombinedDependencyGanttChartView: View {
     // MARK: - Private methods
     
     private func makeItems() -> [GanttItem] {
-        
-        let byName = Dictionary(uniqueKeysWithValues:
-                                    log.packages.map { ($0.name, $0) })
-        var memo = [String: Double]()
-        
-        func start(for name: String, stack: inout Set<String>) -> Double {
-            if let c = memo[name] { return c }
-            guard let pkg = byName[name] else { return 0 }
-            guard stack.insert(name).inserted else { return 0 }
-            
-            var s: Double = 0
-            for d in pkg.dependencies {
-                var st = stack
-                let depStart = start(for: d, stack: &st)
-                let depDur   = byName[d]?.duration ?? 0
-                s = max(s, depStart + depDur)
+
+        guard let baseline = log.packages.map(\.startTime).min() else { return [] }
+
+        return log.packages
+            .map { p in
+                GanttItem(name: p.name,
+                          start: p.startTime - baseline,
+                          end:   p.endTime   - baseline,
+                          duration: p.duration,
+                          type: p.type)
             }
-            stack.remove(name)
-            memo[name] = s
-            return s
-        }
-        
-        return log.packages.map { p in
-            var st = Set<String>()
-            let begin = start(for: p.name, stack: &st)
-            return GanttItem(name: p.name,
-                             start: begin,
-                             end:   begin + p.duration,
-                             duration: p.duration,
-                             type: p.type)
-        }
-        .sorted { $0.start < $1.start }
+            .sorted { $0.start < $1.start }
     }
     
     private func geometry(for items: [GanttItem]) -> (rowH: CGFloat, pxPerSec: CGFloat,
