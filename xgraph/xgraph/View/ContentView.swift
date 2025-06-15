@@ -16,6 +16,7 @@ struct MainView: View {
     @StateObject private var derivedDataManager = DerivedDataManager()
     @State private var selectedLogFile: URL?
     @State private var activeLog: LogDependencies?
+    @State private var showingRecs = true
     
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -66,14 +67,13 @@ struct MainView: View {
                 ProgressView().padding()
             }
             
-            // список пакетов
-            DependencyListView(results: derivedDataManager.parsedResults)
-            
             if let log = activeLog {
-                Button("Открыть диаграмму") {
-                    GanttWindow.show(for: log, graph: derivedDataManager.selectedDependencyGraph)
-                }
-                .padding(.vertical)
+                HStack {
+                        Button("Открыть диаграмму")      { GanttWindow.show(for: log) }
+                        Spacer()
+                        Button("Показать рекомендации") { RecommendationWindow.show(manager: derivedDataManager) }
+                    }
+                    .padding(.vertical)
             }
         }
         .frame(minWidth: 600, minHeight: 800)

@@ -34,7 +34,9 @@ struct DependencyListView: View {
                                 Text(label(for: p.type))
                                     .foregroundColor(color(for: p.type))
                             }
-                            Text("Duration: \(String(format: "%.2f", p.duration)) sec")
+                            Text("""
+                            Σ \(p.duration) s  •  self \(p.selfDuration) s
+                            """)
                                 .font(.caption)
                                 .foregroundColor(.gray)
 

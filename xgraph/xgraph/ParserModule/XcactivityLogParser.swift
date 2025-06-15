@@ -24,6 +24,7 @@ struct Package: Identifiable, Hashable {
     var startTime: TimeInterval
     var endTime: TimeInterval
     var duration: TimeInterval
+    var selfDuration: TimeInterval
     var dependencies: Set<String> = []
 }
 
@@ -145,7 +146,8 @@ final class XcactivityLogParser: ObservableObject {
                         type:       inferredType,
                         startTime:  startTime,
                         endTime:    endTime,
-                        duration:   pureDuration
+                        duration:   pureDuration,
+                        selfDuration: 0.0
                     )
                 }
             }

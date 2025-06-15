@@ -25,6 +25,7 @@ class DerivedDataManager: ObservableObject {
     @Published var selectedDependencyGraph: [Target: [Dependency]]?
     @Published var xcactivityLogFiles: [URL] = []
     @Published var errorMessage: String?
+    @Published var recommendations: [Recommendation] = []
     
     // MARK: - Private properties
     
@@ -74,6 +75,16 @@ class DerivedDataManager: ObservableObject {
         xcactivityLogParser.$isParsing
             .receive(on: DispatchQueue.main)
             .assign(to: &$isParsingActivityLogs)
+        
+        Publishers.CombineLatest($parsedResults, $selectedDependencyGraph)
+                .receive(on: DispatchQueue.global(qos: .userInitiated))
+                .map { logs, graph -> [Recommendation] in
+                    guard let first = logs.first else { return [] }
+                    return RecommendationEngine()
+                             .analyze(log: first, graph: graph)
+                }
+                .receive(on: DispatchQueue.main)
+                .assign(to: &$recommendations)
     }
     
     // MARK: - Internal methods

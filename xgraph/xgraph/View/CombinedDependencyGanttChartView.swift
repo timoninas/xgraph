@@ -8,14 +8,17 @@
 import SwiftUI
 import Charts
 
-private struct GanttItem: Identifiable {
+struct GanttItem: Identifiable {
     let id = UUID()
     let name: String
     let start: Double
     let end: Double
     let duration: Double
+    let selfDuration: Double
     let type: Package.DepType
+    let deps: Set<String>
 }
+
 private struct TargetColumn: View {
     
     // MARK: - Internal properties
@@ -52,6 +55,7 @@ private struct BarChart: View {
     // MARK: - Private properties
     
     @State private var tip: (item: GanttItem, p: CGPoint)?
+    @State private var sel:  GanttItem?
     
     // MARK: - Body
     
@@ -60,11 +64,12 @@ private struct BarChart: View {
             Chart {
                 ForEach(items) { it in
                     BarMark(
-                        xStart: .value("start", it.start),
-                        xEnd:   .value("end",   it.end),
-                        y:      .value("pkg",   it.name)
-                    )
-                    .foregroundStyle(color(for: it.type))
+                                xStart: .value("start", it.start),
+                                xEnd:   .value("end",   it.end),
+                                y:      .value("pkg",   it.name)
+                            )
+                            .foregroundStyle(color(for: it.type)
+                                .opacity(highlightOpacity(for: it)))
                     .annotation(position: .overlay, alignment: .leading) {
                         let w = (it.end - it.start) * Double(pxPerSec)
                         if w > 40 {
@@ -90,11 +95,29 @@ private struct BarChart: View {
                         })
                 }
             }
+            .overlay {
+                if let s = sel {
+                    let x0 = CGFloat(s.start) * pxPerSec
+                    let x1 = CGFloat(s.end)   * pxPerSec
+                    GeometryReader { geo in
+                        let h = geo.size.height
+                        Path { p in
+                            p.move(to: .init(x: x0, y: 0))
+                            p.addLine(to: .init(x: x0, y: h))
+                            p.move(to: .init(x: x1, y: 0))
+                            p.addLine(to: .init(x: x1, y: h))
+                        }
+                        .stroke(Color.accentColor.opacity(0.4), lineWidth: 1)
+                    }
+                }
+            }
             .overlay(alignment: .topLeading) {
                 if let t = tip {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(t.item.name).bold()
-                        Text(String(format: "%.1f с", t.item.duration))
+                        Text(String(format: "wall: %.1f с | self: %.1f с",
+                                    t.item.duration, t.item.selfDuration))
+                        Text("Линковка: \(label(for: t.item.type))")
                     }
                     .font(.caption)
                     .padding(6)
@@ -109,6 +132,21 @@ private struct BarChart: View {
                 }
             }
             .frame(width: size.width, height: size.height)
+        }
+    }
+    
+    private func highlightOpacity(for it: GanttItem) -> Double {
+        guard let base = sel else { return 1 }
+        if it.id == base.id { return 1 }
+        if base.deps.contains(it.name) { return 0.9 }
+        return 0.25                          // остальные приглушаем
+    }
+
+    private func label(for t: Package.DepType) -> String {
+        switch t {
+        case .staticLib: "Статическая"
+        case .dynamic:   "Динамическая"
+        case .unknown:   "Неопределено"
         }
     }
     
@@ -128,9 +166,14 @@ private struct BarChart: View {
             let yVal: String = proxy.value(atY: ly, as: String.self),
             let hit  = items.first(where: { $0.name == yVal &&
                 $0.start <= xVal && xVal <= $0.end })
-        else { tip = nil; return }
+        else {
+            tip = nil
+            sel = nil
+            return
+        }
         
         tip = (hit, point)
+        sel = hit
     }
     
     private func color(for t: Package.DepType) -> Color {
@@ -205,13 +248,12 @@ struct CombinedDependencyGanttChartView: View {
     // MARK: - Internal properties
     
     let log:   LogDependencies
-    let graph: [Target : [Dependency]]?
     
     // MARK: - Body
     
     var body: some View {
         
-        let items = makeItems()
+        let items = DependencyCombiner.combine(log)
         let g     = geometry(for: items)
         
         VStack(alignment: .leading, spacing: 12) {
@@ -234,8 +276,7 @@ struct CombinedDependencyGanttChartView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(height: min(g.contentH,
-                                   geo.size.height - 40))
+                .frame(height: min(g.contentH, geo.size.height - 40))
             }
             
             BottomAxis(domainX: 0...g.timelineMax,
@@ -247,43 +288,6 @@ struct CombinedDependencyGanttChartView: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-    }
-    
-    // MARK: - Private methods
-    
-    private func makeItems() -> [GanttItem] {
-        
-        let byName = Dictionary(uniqueKeysWithValues:
-                                    log.packages.map { ($0.name, $0) })
-        var memo = [String: Double]()
-        
-        func start(for name: String, stack: inout Set<String>) -> Double {
-            if let c = memo[name] { return c }
-            guard let pkg = byName[name] else { return 0 }
-            guard stack.insert(name).inserted else { return 0 }
-            
-            var s: Double = 0
-            for d in pkg.dependencies {
-                var st = stack
-                let depStart = start(for: d, stack: &st)
-                let depDur   = byName[d]?.duration ?? 0
-                s = max(s, depStart + depDur)
-            }
-            stack.remove(name)
-            memo[name] = s
-            return s
-        }
-        
-        return log.packages.map { p in
-            var st = Set<String>()
-            let begin = start(for: p.name, stack: &st)
-            return GanttItem(name: p.name,
-                             start: begin,
-                             end:   begin + p.duration,
-                             duration: p.duration,
-                             type: p.type)
-        }
-        .sorted { $0.start < $1.start }
     }
     
     private func geometry(for items: [GanttItem]) -> (rowH: CGFloat, pxPerSec: CGFloat,

@@ -1,0 +1,16 @@
+weights:
+  cold: 0.4
+  incr: 0.3
+  link: 0.2
+  run:  0.1
+
+thresholds:
+  heavyComponent:      15.0     # «Бутылочное горлышко»
+  criticalPath:        80       # «Критический путь»
+  lowParallelism:       4       # («коэф. параллельности» = threadsUsed)
+  staticFanOut:         10      # ≥ N потребителей
+  dynamicSingleUse:     1       # динамич. библиотека с 1 потребителем
+  manySmallDeps:
+    maxDuration:        0.5     # < 1 %
+    minCount:          10       # ≥ 10 зависимостей
+  longSequentialPath:  40       # последовательный путь > 40 %

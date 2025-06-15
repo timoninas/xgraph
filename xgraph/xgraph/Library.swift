@@ -125,7 +125,12 @@ public enum DetailStepType: String, Encodable {
 import Foundation
 
 /// Wrap the statistics data produced by ld64 linker (-print_statistics)
-public class LinkerStatistics: Encodable {
+public class LinkerStatistics: Encodable, Equatable {
+    
+    public static func == (lhs: LinkerStatistics, rhs: LinkerStatistics) -> Bool {
+        lhs.totalMS == rhs.totalMS
+    }
+    
     public let totalMS: Double
 
     public let optionParsingMS: Double
@@ -209,7 +214,7 @@ public class LinkerStatistics: Encodable {
 
 
 /// Represents a Step in the BuildLog
-public struct BuildStep: Encodable {
+public struct BuildStep: Encodable, Equatable {
 
     /// The type of the step
     public let type: BuildStepType
@@ -2195,7 +2200,7 @@ class SwiftCompilerFunctionTimeOptionParser: SwiftCompilerTimeOptionParser {
 import Foundation
 
 /// Represents the time it took to the Swift Compiler to type check an expression
-public struct SwiftTypeCheck: Encodable {
+public struct SwiftTypeCheck: Encodable, Equatable {
 
     /// URL of the file where the function is
     public let file: String
@@ -2367,7 +2372,7 @@ import Foundation
 
 /// Xcode reports warnings, errors and notes as IDEActivityLogMessage. This class
 /// wraps that data
-public class Notice: Codable {
+public class Notice: Codable, Equatable {
 
     public let type: NoticeType
     public let title: String
@@ -2542,7 +2547,7 @@ extension Notice: Hashable {
 import Foundation
 
 /// Represents the time it took to the Swift Compiler to compile a function
-public struct SwiftFunctionTime: Encodable {
+public struct SwiftFunctionTime: Encodable, Equatable {
     /// URL of the file where the function is
     public let file: String
 
