@@ -81,7 +81,6 @@ final class LlamaRecommendationInteractor {
         // 3. Отправляем запрос
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        print()
         // 4. Парсим ответ
         let outer = try decoder.decode(LlamaChatResponse.self, from: data)
         guard let innerData = outer.message.content.data(using: .utf8) else {
@@ -115,8 +114,6 @@ final class LlamaRecommendationInteractor {
     2. Посчитай количество зависимостей всего
     3. -
     4. Тебе нужно сформировать рекомендации полученные по проекту
-    
-    1. 
 
     Говори строго на русском.
     """
@@ -124,21 +121,21 @@ final class LlamaRecommendationInteractor {
     /// Полный юзер‑промпт
     private static func buildPrompt(with projectJSON: String) -> String {
         """
-            ### ПРИМЕР
-                ВХОД:
-                {"components":[{"name":"A","selfDuration":12,"deps":["B"]},{"name":"B","selfDuration":1,"deps":[]}]}
+        ### ПРИМЕР
+        ВХОД:
+        {"components":[{"name":"A","selfDuration":12,"deps":["B"]},{"name":"B","selfDuration":1,"deps":[]}]}
 
-                ВЫХОД:
-                {"recommendations":[
-                  {"type":"manySmallDeps","message":"Компонент B занимает <1 % времени — объедините с A.","affected":["B"],"score":45}
-                ]}
+        ВЫХОД:
+        {"recommendations":[
+            {"type":"manySmallDeps","message":"Компонент B занимает <1 % времени — объедините с A.","affected":["B"],"score":45}
+        ]}
 
-                ### ПРОЕКТ
-                selfDuration - время потраченное на сборку конкретного модуля
-                deps - зависимости модуля. Это названия зависимостей от которых зависит модуль с названием name. По ним можно получить связи всего проекта
-                Этот проект представлен в json формате приложенным тебе далее:
-                \(projectJSON)
-            """
+        ### ПРОЕКТ
+        selfDuration - время потраченное на сборку конкретного модуля
+        deps - зависимости модуля. Это названия зависимостей от которых зависит модуль с названием name. По ним можно получить связи всего проекта
+        Этот проект представлен в json формате приложенным тебе далее:
+        \(projectJSON)
+        """
     }
 }
 
